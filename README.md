@@ -50,13 +50,5 @@ View full recipe details including ingredients, instructions, and nutrition.
 
 ---
 
-## 🌐 Future Improvements
-
-* Voice input for ingredients
-* Smart grocery list generator
-* AI generated food images
-* Meal planning system
-
----
 
 
