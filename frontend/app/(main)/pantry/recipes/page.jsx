@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ChefHat,
@@ -14,22 +15,36 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import useFetch from "@/hooks/use-fetch";
-import { getRecipesByPantryIngredients } from "@/actions/recipe.actions";
+import {
+  getRecipesByPantryIngredients,
+  getRecipesByCustomIngredients,
+} from "@/actions/recipe.actions";
 import RecipeCard from "@/components/RecipeCard";
 import PricingModal from "@/components/PricingModal";
 
 export default function PantryRecipesPage() {
+  const searchParams = useSearchParams();
+  const customIngredients = searchParams.get("ingredients");
+
   const {
     loading,
     data: recipesData,
     fn: fetchSuggestions,
-  } = useFetch(getRecipesByPantryIngredients);
+  } = useFetch(
+    customIngredients ? getRecipesByCustomIngredients : getRecipesByPantryIngredients
+  );
 
   console.log(recipesData);
 
   // Load suggestions on mount
   useEffect(() => {
-    fetchSuggestions();
+    if (customIngredients) {
+      const formData = new FormData();
+      formData.append("ingredients", customIngredients);
+      fetchSuggestions(formData);
+    } else {
+      fetchSuggestions();
+    }
   }, []);
 
   const recipes = recipesData?.recipes || [];
@@ -41,11 +56,11 @@ export default function PantryRecipesPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/pantry"
+            href={customIngredients ? "/dashboard" : "/pantry"}
             className="inline-flex items-center gap-2 text-stone-600 hover:text-orange-600 transition-colors mb-4 font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Pantry
+            {customIngredients ? "Back to Dashboard" : "Back to Pantry"}
           </Link>
 
           <div className="flex items-center gap-3 mb-6">
@@ -55,7 +70,9 @@ export default function PantryRecipesPage() {
                 What Can I Cook?
               </h1>
               <p className="text-stone-600 font-light">
-                AI-powered recipe suggestions based on your pantry
+                {customIngredients
+                  ? "AI-powered recipe suggestions based on your ingredients"
+                  : "AI-powered recipe suggestions based on your pantry"}
               </p>
             </div>
           </div>
@@ -140,7 +157,15 @@ export default function PantryRecipesPage() {
             {/* Refresh Button */}
             <div className="mt-8 text-center">
               <Button
-                onClick={() => fetchSuggestions(new FormData())}
+                onClick={() => {
+                  if (customIngredients) {
+                    const formData = new FormData();
+                    formData.append("ingredients", customIngredients);
+                    fetchSuggestions(formData);
+                  } else {
+                    fetchSuggestions(new FormData());
+                  }
+                }}
                 variant="outline"
                 className="border-2 border-stone-900 hover:bg-stone-900 hover:text-white gap-2"
                 disabled={loading}

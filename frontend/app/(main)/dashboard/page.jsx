@@ -10,6 +10,7 @@ import {
   getAreas,
 } from "@/actions/mealdb.actions";
 import { getCategoryEmoji, getCountryFlag } from "@/lib/data";
+import IngredientsInput from "@/components/IngredientsInput";
 
 export default async function DashboardPage() {
   // Fetch data server-side
@@ -124,6 +125,9 @@ export default async function DashboardPage() {
             </Link>
           </section>
         )}
+
+        {/* Cook With What You Have */}
+        <IngredientsInput />
 
         {/* Browse by Categories */}
         <section className="mb-24">

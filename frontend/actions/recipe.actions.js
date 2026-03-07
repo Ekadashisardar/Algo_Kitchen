@@ -22,6 +22,37 @@ function normalizeTitle(title) {
     .join(" ");
 }
 
+// Helper function to generate AI image for a recipe
+async function generateRecipeImageAI(recipeName, ingredients) {
+  try {
+    const imageModel = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+      },
+    });
+
+    const prompt = `Generate a professional food photography image of "${recipeName}" made with ${ingredients}. Show the finished dish plated beautifully on a table, natural lighting, appetizing, high quality.`;
+
+    const result = await imageModel.generateContent(prompt);
+    const parts = result.response.candidates?.[0]?.content?.parts || [];
+
+    for (const part of parts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+
+    throw new Error("No image data in Gemini response");
+  } catch (error) {
+    console.error(
+      "AI image generation failed, falling back to Unsplash:",
+      error.message
+    );
+    return await fetchRecipeImage(recipeName);
+  }
+}
+
 // Helper function to fetch image from Unsplash
 async function fetchRecipeImage(recipeName) {
   try {
@@ -580,15 +611,137 @@ Rules:
       );
     }
 
+    // Generate AI images for each recipe in parallel
+    const recipesWithImages = await Promise.all(
+      recipeSuggestions.map(async (recipe) => {
+        const imageUrl = await generateRecipeImageAI(
+          recipe.title,
+          ingredients
+        );
+        return { ...recipe, imageUrl };
+      })
+    );
+
     return {
       success: true,
-      recipes: recipeSuggestions,
+      recipes: recipesWithImages,
       ingredientsUsed: ingredients,
       recommendationsLimit: isPro ? "unlimited" : 5,
-      message: `Found ${recipeSuggestions.length} recipes you can make!`,
+      message: `Found ${recipesWithImages.length} recipes you can make!`,
     };
   } catch (error) {
     console.error("❌ Error in getRecipesByPantryIngredients:", error);
+    throw new Error(error.message || "Failed to get recipe suggestions");
+  }
+}
+
+// Get recipes based on custom ingredient list (entered by user)
+export async function getRecipesByCustomIngredients(formData) {
+  try {
+    const user = await checkUser();
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const ingredients = formData.get("ingredients");
+    if (!ingredients || !ingredients.trim()) {
+      return {
+        success: false,
+        message: "No ingredients provided. Please enter some ingredients.",
+      };
+    }
+
+    // ARCJET RATE LIMIT CHECK
+    const isPro = user.subscriptionTier === "pro";
+    const arcjetClient = isPro ? proTierLimit : freeMealRecommendations;
+
+    const req = await request();
+
+    const decision = await arcjetClient.protect(req, {
+      userId: user.clerkId,
+      requested: 1,
+    });
+
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        throw new Error(
+          `Monthly AI recipe limit reached. ${
+            isPro ? "Please contact support." : "Upgrade to Pro!"
+          }`
+        );
+      }
+      throw new Error("Request denied");
+    }
+
+    console.log("🥘 Finding recipes for custom ingredients:", ingredients);
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+
+    const prompt = `
+You are a professional chef. Given these available ingredients: ${ingredients}
+
+Suggest 5 recipes that can be made primarily with these ingredients. It's okay if the recipes need 1-2 common pantry staples (salt, pepper, oil, etc.) that aren't listed.
+
+Return ONLY a valid JSON array (no markdown, no explanations):
+[
+  {
+    "title": "Recipe name",
+    "description": "Brief 1-2 sentence description",
+    "matchPercentage": 85,
+    "missingIngredients": ["ingredient1", "ingredient2"],
+    "category": "breakfast|lunch|dinner|snack|dessert",
+    "cuisine": "italian|chinese|mexican|etc",
+    "prepTime": 20,
+    "cookTime": 30,
+    "servings": 4
+  }
+]
+
+Rules:
+- matchPercentage should be 70-100% (how many listed ingredients are used)
+- missingIngredients should be common items or optional additions
+- Sort by matchPercentage descending
+- Make recipes realistic and delicious
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    let recipeSuggestions;
+    try {
+      const cleanText = text
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+      recipeSuggestions = JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      throw new Error(
+        "Failed to generate recipe suggestions. Please try again."
+      );
+    }
+
+    // Generate AI images for each recipe in parallel
+    const recipesWithImages = await Promise.all(
+      recipeSuggestions.map(async (recipe) => {
+        const imageUrl = await generateRecipeImageAI(
+          recipe.title,
+          ingredients
+        );
+        return { ...recipe, imageUrl };
+      })
+    );
+
+    return {
+      success: true,
+      recipes: recipesWithImages,
+      ingredientsUsed: ingredients,
+      recommendationsLimit: isPro ? "unlimited" : 5,
+      message: `Found ${recipesWithImages.length} recipes you can make!`,
+    };
+  } catch (error) {
+    console.error("❌ Error in getRecipesByCustomIngredients:", error);
     throw new Error(error.message || "Failed to get recipe suggestions");
   }
 }

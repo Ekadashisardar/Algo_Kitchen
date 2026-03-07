@@ -121,6 +121,7 @@ export default function RecipeCard({ recipe, variant = "default" }) {
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              unoptimized={data.image?.startsWith("data:")}
             />
             {/* Match Percentage Badge on Image */}
             {data.matchPercentage && (
