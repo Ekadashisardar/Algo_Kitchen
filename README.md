@@ -1,8 +1,16 @@
-<<<<<<< HEAD
-# AlgoKitchen
-=======
-# Full Stack AI Recipe Platform with Next JS, Neon DB, Tailwind, Strapi, Arcjet, Shadcn UI Tutorial 🔥🔥
-## https://www.youtube.com/watch?v=zZ85cFWgNhI
+# 🍳 AlgoKitchen – AI Recipe Generator
 
-<img width="1280" height="720" alt="servd" src="https://github.com/user-attachments/assets/b030b01c-55a0-4a92-9492-8f72ed57b8bc" />
->>>>>>> b468b50 (Create README.md)
+AlgoKitchen is an AI-powered recipe generator that helps you create delicious recipes instantly using AI.
+
+## 🚀 Features
+- 🤖 AI-generated recipes
+- 🍲 Search any dish instantly
+- ⚡ Fast and responsive UI
+- 🔐 Secure API integration
+- 📦 Full-stack (Next.js + Strapi)
+
+## 🛠 Tech Stack
+- Next.js
+- Strapi CMS
+- Tailwind CSS
+- Gemini AI API
